@@ -1,0 +1,36 @@
+orbs:
+  docker: circleci/docker@2.4.0
+name: Build and push docker image to gcr
+
+version: 2.1
+
+jobs:
+  build_and_push_image_gcr:
+    docker:
+      - image: google/cloud-sdk:slim
+    name: Build and push docker image to gcr
+    steps:
+       - checkout
+       - setup_remote_docker
+       - run:
+           name: Build & Push Docker image - GCR
+           command: |
+              echo ${GCP_CREDENTIALS} > gcp-key.json
+              gcloud auth activate-service-account --key-file gcp-key.json
+              make docker_push IMAGE_TAGS="${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}"
+  
+  lint:
+    executor: docker/machine
+    steps:
+      - checkout
+      - docker/dockerlint:
+          dockerfile: Dockerfile
+          treat-warnings-as-errors: false
+
+workflows:
+  build:
+    jobs:
+      - lint
+      - build-gcr:
+          requires:
+            - lint
